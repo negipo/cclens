@@ -30,6 +30,12 @@ fn render_user(content_val: &Value) -> Option<RenderedMessage> {
         return None;
     };
 
+    if let Some(summary) = extract_tag(&raw, "summary") {
+        if raw.contains("<task-notification>") {
+            return Some(RenderedMessage::Assistant(summary));
+        }
+    }
+
     let cleaned = clean_user_content(&raw);
     let trimmed = cleaned.trim();
     if trimmed.is_empty() {
