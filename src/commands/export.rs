@@ -64,7 +64,7 @@ pub fn run(session_id: &str) -> Result<()> {
             Some(RenderedMessage::Assistant(content)) => {
                 let mut lines = content.lines();
                 if let Some(first) = lines.next() {
-                    if first.starts_with("```") {
+                    if needs_separate_marker(first) {
                         println!("❋\n");
                         println!("{}", first);
                     } else {
@@ -81,4 +81,13 @@ pub fn run(session_id: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn needs_separate_marker(line: &str) -> bool {
+    let md_prefixes = ["```", "#", "- ", "* ", "> ", "| "];
+    if md_prefixes.iter().any(|p| line.starts_with(p)) {
+        return true;
+    }
+    line.starts_with(|c: char| c.is_ascii_digit())
+        && line.contains(". ")
 }
