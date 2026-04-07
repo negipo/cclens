@@ -64,7 +64,12 @@ pub fn run(session_id: &str) -> Result<()> {
             Some(RenderedMessage::Assistant(content)) => {
                 let mut lines = content.lines();
                 if let Some(first) = lines.next() {
-                    println!("❋ {}", first);
+                    if first.starts_with("```") {
+                        println!("❋\n");
+                        println!("{}", first);
+                    } else {
+                        println!("❋ {}", first);
+                    }
                 }
                 for l in lines {
                     println!("{}", l);
