@@ -13,7 +13,7 @@ The session ID must already be identified. If unknown, identify the session firs
 
 ## Workflow
 
-Conversation logs can be large, so it is preferable to have a subagent read them to avoid overwhelming the main context.
+When only a summary or specific excerpt is needed, dispatch a subagent so the main context is not filled with the full log. When full text is needed in the main context, run `cclens export` directly via Bash — the export is a compressed, formatted view of the prior session and will not exceed the previous session's context size, so it fits safely.
 
 1. Dispatch a subagent to read the output of `cclens export <session-id>`
 2. Instruct the subagent to process according to the user's request:
@@ -21,7 +21,7 @@ Conversation logs can be large, so it is preferable to have a subagent read them
    - If asked about a specific topic → quote and explain the relevant parts
    - If continuation of work is requested → organize the previous work and remaining tasks
 3. Present the subagent's response to the user
-4. If continuation work is anticipated (the subagent's summary includes incomplete tasks, the user says "continue", "pick up where we left off", etc.), start loading the full text in the background (`cclens export` into the main context) simultaneously with presenting the summary. Do not wait for the user to ask for it.
+4. If continuation work is anticipated (the subagent's summary includes incomplete tasks, the user says "continue", "pick up where we left off", etc.), run `cclens export <session-id>` via Bash in the main session to load the full text into the main context, in parallel with presenting the summary. Do not wait for the user to ask for it.
 
 ## Branch Caveat
 
