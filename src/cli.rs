@@ -19,6 +19,8 @@ pub enum Commands {
         before: Option<String>,
         #[arg(long, default_value = "20")]
         limit: usize,
+        #[arg(long, short = 't')]
+        table: bool,
     },
     Show {
         session_id: String,
