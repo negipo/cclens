@@ -7,8 +7,8 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Query { text, branch, after, before, all, limit } => {
-            cclens::commands::query::run(text, branch, after, before, all, limit)?;
+        Commands::Query { text, branch, after, before, limit } => {
+            cclens::commands::query::run(text, branch, after, before, limit)?;
         }
         Commands::Show { session_id } => {
             cclens::commands::show::run(&session_id)?;

@@ -8,13 +8,11 @@ pub fn run(
     branch: Option<String>,
     after: Option<String>,
     before: Option<String>,
-    all: bool,
     limit: usize,
 ) -> Result<()> {
     let db = Database::open()?;
-    let cwd = std::env::current_dir()?;
     let projects_dir = default_projects_dir();
-    let dirs = resolve_project_dirs(&cwd, &projects_dir, all)?;
+    let dirs = resolve_project_dirs(&projects_dir)?;
 
     update_index(&db, &dirs)?;
 

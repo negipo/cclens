@@ -5,9 +5,8 @@ use anyhow::{bail, Result};
 
 pub fn run(session_id: &str) -> Result<()> {
     let db = Database::open()?;
-    let cwd = std::env::current_dir()?;
     let projects_dir = default_projects_dir();
-    let dirs = resolve_project_dirs(&cwd, &projects_dir, true)?;
+    let dirs = resolve_project_dirs(&projects_dir)?;
     update_index(&db, &dirs)?;
 
     match db.get_session(session_id)? {

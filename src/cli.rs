@@ -17,8 +17,6 @@ pub enum Commands {
         after: Option<String>,
         #[arg(long)]
         before: Option<String>,
-        #[arg(long)]
-        all: bool,
         #[arg(long, default_value = "20")]
         limit: usize,
     },

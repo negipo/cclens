@@ -13,9 +13,8 @@ pub fn run() -> Result<()> {
 
     eprintln!("Rebuilding index...");
     let db = crate::db::Database::open()?;
-    let cwd = std::env::current_dir()?;
     let projects_dir = crate::scope::default_projects_dir();
-    let dirs = crate::scope::resolve_project_dirs(&cwd, &projects_dir, true)?;
+    let dirs = crate::scope::resolve_project_dirs(&projects_dir)?;
     crate::indexer::update_index(&db, &dirs)?;
     eprintln!("Done.");
 
