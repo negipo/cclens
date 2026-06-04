@@ -313,6 +313,25 @@ impl Database {
         Ok(snippets)
     }
 
+    fn get_first_user_snippet(&self, session_id: &str) -> Result<Vec<MatchSnippet>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT role, content, timestamp FROM messages
+             WHERE session_id = ?1 AND role = 'user' AND is_meta = 0
+             ORDER BY timestamp LIMIT 1",
+        )?;
+        let mut rows = stmt.query(params![session_id])?;
+        let mut snippets = Vec::new();
+        if let Some(row) = rows.next()? {
+            let content: String = row.get(1)?;
+            snippets.push(MatchSnippet {
+                role: row.get(0)?,
+                snippet: truncate_around_match(&content, 80),
+                timestamp: row.get(2)?,
+            });
+        }
+        Ok(snippets)
+    }
+
     pub fn list_sessions(
         &self,
         project_paths: &[&str],
@@ -374,6 +393,7 @@ impl Database {
         let mut results = Vec::new();
         while let Some(row) = rows.next()? {
             let session_id: String = row.get(0)?;
+            let matches = self.get_first_user_snippet(&session_id)?;
             results.push(QueryResult {
                 resume_command: format!("claude --resume {}", session_id),
                 session_id,
@@ -383,7 +403,7 @@ impl Database {
                 started_at: row.get(4)?,
                 ended_at: row.get(5)?,
                 match_count: row.get(6)?,
-                matches: Vec::new(),
+                matches,
             });
         }
 
