@@ -23,7 +23,20 @@ fn cclens_bin() -> String {
 }
 
 #[test]
-fn test_query_returns_json_array() {
+fn test_query_json_flag_returns_json_array() {
+    let bin = cclens_bin();
+    let output = Command::new(&bin)
+        .args(["query", "--json", "nonexistent-query-string-xyz"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert!(parsed.is_array());
+}
+
+#[test]
+fn test_query_default_outputs_table_header() {
     let bin = cclens_bin();
     let output = Command::new(&bin)
         .args(["query", "nonexistent-query-string-xyz"])
@@ -31,8 +44,10 @@ fn test_query_returns_json_array() {
         .unwrap();
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    assert!(parsed.is_array());
+    assert!(stdout.contains("STARTED"));
+    assert!(stdout.contains("PROJECT"));
+    assert!(stdout.contains("SESSION"));
+    assert!(stdout.contains("SNIPPET"));
 }
 
 #[test]

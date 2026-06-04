@@ -14,24 +14,25 @@ Other cclens skills (exporting-history, resuming-from-history) require the sessi
 
 Text search:
 ```bash
-cclens query "search keywords"
+cclens query "search keywords" --json
 ```
 
 `query` searches across all projects by default.
+The default output is a human-readable table. This skill parses JSON, so always pass `--json`.
 
 OR search (match any of several terms, separated by `|`):
 ```bash
-cclens query "Notion|Slack|Linear"
+cclens query "Notion|Slack|Linear" --json
 ```
 
 Filter by branch:
 ```bash
-cclens query --branch feature/xxx
+cclens query --branch feature/xxx --json
 ```
 
 Filter by date:
 ```bash
-cclens query "keywords" --after 2026-03-01 --before 2026-03-31
+cclens query "keywords" --after 2026-03-01 --before 2026-03-31 --json
 ```
 
 ### cclens show
@@ -52,10 +53,10 @@ cclens export <session-id>
 
 Choose the appropriate search method based on the user's request:
 
-- "Review session for PR 42" → `cclens query "42"` or `cclens query "PR 42"`
-- If the PR URL is known → get the branch name with `gh pr view <url> --json headRefName` then `cclens query --branch <branch>`
-- "Last week's work on example repository" → `cclens query --after 2026-03-29 --before 2026-04-05`
-- "Session where we discussed retry logic" → `cclens query "retry logic"`
+- "Review session for PR 42" → `cclens query "42" --json` or `cclens query "PR 42" --json`
+- If the PR URL is known → get the branch name with `gh pr view <url> --json headRefName` then `cclens query --branch <branch> --json`
+- "Last week's work on example repository" → `cclens query --after 2026-03-29 --before 2026-04-05 --json`
+- "Session where we discussed retry logic" → `cclens query "retry logic" --json`
 
 ## Output and Session Identification Flow
 

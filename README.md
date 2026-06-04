@@ -19,6 +19,7 @@ cclens query "search terms"
 cclens query --branch feature/xxx
 cclens query "keywords" --after 2025-01-01 --before 2025-01-31
 cclens query "term-a|term-b"   # OR search: match any term
+cclens query "search terms" --json   # output JSON instead of the default table
 ```
 
 ### Inspect a session

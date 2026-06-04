@@ -71,7 +71,7 @@ pub fn run(
     after: Option<String>,
     before: Option<String>,
     limit: usize,
-    table: bool,
+    json: bool,
 ) -> Result<()> {
     let db = Database::open()?;
     let projects_dir = default_projects_dir();
@@ -97,10 +97,10 @@ pub fn run(
         )?
     };
 
-    if table {
-        print!("{}", render_table(&results));
-    } else {
+    if json {
         println!("{}", serde_json::to_string_pretty(&results)?);
+    } else {
+        print!("{}", render_table(&results));
     }
     Ok(())
 }
