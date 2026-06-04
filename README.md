@@ -18,7 +18,7 @@ cargo install --path .
 cclens query "search terms"
 cclens query --branch feature/xxx
 cclens query "keywords" --after 2025-01-01 --before 2025-01-31
-cclens query "keywords" --all  # search across all projects
+cclens query "term-a|term-b"   # OR search: match any term
 ```
 
 ### Inspect a session

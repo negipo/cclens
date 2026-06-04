@@ -17,6 +17,13 @@ Text search:
 cclens query "search keywords"
 ```
 
+`query` searches across all projects by default.
+
+OR search (match any of several terms, separated by `|`):
+```bash
+cclens query "Notion|Slack|Linear"
+```
+
 Filter by branch:
 ```bash
 cclens query --branch feature/xxx
@@ -25,11 +32,6 @@ cclens query --branch feature/xxx
 Filter by date:
 ```bash
 cclens query "keywords" --after 2026-03-01 --before 2026-03-31
-```
-
-If no results found, expand to all projects with `--all`:
-```bash
-cclens query "keywords" --all
 ```
 
 ### cclens show
@@ -62,6 +64,8 @@ The query output is a JSON array. Each session includes snippets of matched mess
 [
   {
     "session_id": "abcd1234-...",
+    "project_path": "-Users-example-src-sample-repo",
+    "cwd": "/Users/example/src/sample-repo",
     "git_branch": "main",
     "started_at": "2026-03-22T12:56:20Z",
     "match_count": 3,
@@ -79,6 +83,8 @@ The query output is a JSON array. Each session includes snippets of matched mess
 Present the resume command directly to the user.
 
 ### Multiple candidates
+
+When presenting candidates, also show the leaf directory name (basename of `cwd`, falling back to `project_path`) so the user can tell which project each session belongs to.
 
 Snippets alone are often insufficient for the user to decide. Use the following flow to narrow down:
 
@@ -105,4 +111,4 @@ If there are many candidates (5+), it is more context-efficient to first narrow 
 ### Zero results
 
 1. Suggest retrying with different keywords
-2. Expand to all projects with `--all`
+2. Note that `query` already spans all projects; try broadening keywords or using OR (`a|b`) instead
