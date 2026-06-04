@@ -13,11 +13,11 @@ fn test_incremental_index_skips_unchanged() {
 
     let db = Database::in_memory().unwrap();
 
-    let (indexed, skipped) = update_index(&db, &[project_dir.clone()]).unwrap();
+    let (indexed, skipped) = update_index(&db, std::slice::from_ref(&project_dir)).unwrap();
     assert_eq!(indexed, 1);
     assert_eq!(skipped, 0);
 
-    let (indexed, skipped) = update_index(&db, &[project_dir.clone()]).unwrap();
+    let (indexed, skipped) = update_index(&db, std::slice::from_ref(&project_dir)).unwrap();
     assert_eq!(indexed, 0);
     assert_eq!(skipped, 1);
 }
