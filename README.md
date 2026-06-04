@@ -25,14 +25,14 @@ cclens query "search terms" --json   # output JSON instead of the default table
 ### List all sessions
 
 ```bash
-cclens list                          # all sessions, no limit
+cclens list                          # most recent 30 sessions
 cclens list --branch feature/xxx     # filter by branch
 cclens list --after 2025-01-01 --before 2025-01-31
-cclens list --limit 50               # cap the number of rows
+cclens list --limit 100              # raise the row cap (default 30)
 cclens list --json                   # output JSON instead of the default table
 ```
 
-`list` shares `query`'s filters but takes no search keyword and shows every session by default.
+`list` shares `query`'s filters but takes no search keyword and shows the most recent sessions by default.
 
 ### Inspect a session
 

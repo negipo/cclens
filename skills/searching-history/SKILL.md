@@ -37,7 +37,7 @@ cclens query "keywords" --after 2026-03-01 --before 2026-03-31 --json
 
 ### cclens list
 
-List all sessions without a search keyword (no limit by default):
+List recent sessions without a search keyword (most recent 30 by default):
 ```bash
 cclens list --json
 ```
@@ -46,7 +46,7 @@ cclens list --json
 ```bash
 cclens list --branch feature/xxx --json
 cclens list --after 2026-03-01 --before 2026-03-31 --json
-cclens list --limit 50 --json   # cap the number of rows
+cclens list --limit 100 --json   # raise the row cap (default 30)
 ```
 
 Output rows carry the same fields as `query`. Since there is no keyword, `matches` holds a single preview entry: the first user message of each session. Prefer `query` when you have a keyword; prefer `list` when the user wants to browse everything or filter only by branch/date.

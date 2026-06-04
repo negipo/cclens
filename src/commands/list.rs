@@ -16,7 +16,7 @@ pub fn run(
         branch.as_deref(),
         after.as_deref(),
         before.as_deref(),
-        limit.unwrap_or(i64::MAX as usize),
+        limit.unwrap_or(30),
     )?;
 
     print_results(&results, json)
