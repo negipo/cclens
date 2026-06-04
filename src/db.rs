@@ -17,6 +17,14 @@ fn truncate_around_match(content: &str, max_len: usize) -> String {
     s
 }
 
+fn split_search_terms(text: &str) -> Vec<String> {
+    text.split('|')
+        .map(|t| t.trim())
+        .filter(|t| !t.is_empty())
+        .map(String::from)
+        .collect()
+}
+
 pub struct Database {
     conn: Connection,
 }
@@ -200,50 +208,61 @@ impl Database {
             return Ok(Vec::new());
         }
 
-        let pattern = format!("%{}%", text);
+        let terms = split_search_terms(text);
+        if terms.is_empty() {
+            return Ok(Vec::new());
+        }
+        let patterns: Vec<String> = terms.iter().map(|t| format!("%{}%", t)).collect();
 
-        let placeholders: Vec<String> = (0..project_paths.len())
-            .map(|i| format!("?{}", i + 2))
-            .collect();
-        let in_clause = placeholders.join(", ");
+        let like_clause = (0..patterns.len())
+            .map(|i| format!("m.content LIKE ?{}", i + 1))
+            .collect::<Vec<_>>()
+            .join(" OR ");
+        let proj_start = patterns.len() + 1;
+        let in_clause = (0..project_paths.len())
+            .map(|i| format!("?{}", proj_start + i))
+            .collect::<Vec<_>>()
+            .join(", ");
 
         let sql = format!(
-            "SELECT s.session_id, s.project_path, s.git_branch, s.started_at, s.ended_at, COUNT(*) as match_count
+            "SELECT s.session_id, s.project_path, s.cwd, s.git_branch, s.started_at, s.ended_at, COUNT(*) as match_count
              FROM sessions s
              JOIN messages m ON s.session_id = m.session_id
-             WHERE m.content LIKE ?1
+             WHERE ({})
                AND m.is_meta = 0
                AND s.project_path IN ({})
-             GROUP BY s.session_id, s.project_path, s.git_branch, s.started_at, s.ended_at
+             GROUP BY s.session_id, s.project_path, s.cwd, s.git_branch, s.started_at, s.ended_at
              ORDER BY s.started_at DESC
              LIMIT {}",
-            in_clause, limit
+            like_clause, in_clause, limit
         );
 
-        let mut stmt = self.conn.prepare(&sql)?;
-
         let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-        param_values.push(Box::new(pattern.clone()));
+        for p in &patterns {
+            param_values.push(Box::new(p.clone()));
+        }
         for path in project_paths {
             param_values.push(Box::new(path.to_string()));
         }
         let param_refs: Vec<&dyn rusqlite::types::ToSql> =
             param_values.iter().map(|p| p.as_ref()).collect();
 
+        let mut stmt = self.conn.prepare(&sql)?;
         let mut rows = stmt.query(param_refs.as_slice())?;
 
         let mut results = Vec::new();
         while let Some(row) = rows.next()? {
             let session_id: String = row.get(0)?;
-            let matches = self.get_match_snippets(&session_id, &pattern, 5)?;
+            let matches = self.get_match_snippets(&session_id, &patterns, 5)?;
             results.push(QueryResult {
                 resume_command: format!("claude --resume {}", session_id),
                 session_id,
                 project_path: row.get(1)?,
-                git_branch: row.get(2)?,
-                started_at: row.get(3)?,
-                ended_at: row.get(4)?,
-                match_count: row.get(5)?,
+                cwd: row.get(2)?,
+                git_branch: row.get(3)?,
+                started_at: row.get(4)?,
+                ended_at: row.get(5)?,
+                match_count: row.get(6)?,
                 matches,
             });
         }
@@ -254,15 +273,32 @@ impl Database {
     fn get_match_snippets(
         &self,
         session_id: &str,
-        pattern: &str,
+        patterns: &[String],
         max_snippets: usize,
     ) -> Result<Vec<MatchSnippet>> {
-        let mut stmt = self.conn.prepare(
+        let like_clause = (0..patterns.len())
+            .map(|i| format!("content LIKE ?{}", i + 2))
+            .collect::<Vec<_>>()
+            .join(" OR ");
+        let limit_idx = patterns.len() + 2;
+        let sql = format!(
             "SELECT role, content, timestamp FROM messages
-             WHERE session_id = ?1 AND content LIKE ?2 AND is_meta = 0
-             ORDER BY timestamp LIMIT ?3",
-        )?;
-        let mut rows = stmt.query(params![session_id, pattern, max_snippets as i64])?;
+             WHERE session_id = ?1 AND ({}) AND is_meta = 0
+             ORDER BY timestamp LIMIT ?{}",
+            like_clause, limit_idx
+        );
+
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+        param_values.push(Box::new(session_id.to_string()));
+        for p in patterns {
+            param_values.push(Box::new(p.clone()));
+        }
+        param_values.push(Box::new(max_snippets as i64));
+        let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
+
+        let mut stmt = self.conn.prepare(&sql)?;
+        let mut rows = stmt.query(param_refs.as_slice())?;
 
         let mut snippets = Vec::new();
         while let Some(row) = rows.next()? {
@@ -322,7 +358,7 @@ impl Database {
         let where_clause = format!("WHERE {}", conditions.join(" AND "));
 
         let sql = format!(
-            "SELECT session_id, project_path, git_branch, started_at, ended_at, 0 as match_count
+            "SELECT session_id, project_path, cwd, git_branch, started_at, ended_at, 0 as match_count
              FROM sessions
              {}
              ORDER BY started_at DESC
@@ -342,10 +378,11 @@ impl Database {
                 resume_command: format!("claude --resume {}", session_id),
                 session_id,
                 project_path: row.get(1)?,
-                git_branch: row.get(2)?,
-                started_at: row.get(3)?,
-                ended_at: row.get(4)?,
-                match_count: row.get(5)?,
+                cwd: row.get(2)?,
+                git_branch: row.get(3)?,
+                started_at: row.get(4)?,
+                ended_at: row.get(5)?,
+                match_count: row.get(6)?,
                 matches: Vec::new(),
             });
         }

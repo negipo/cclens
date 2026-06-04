@@ -72,3 +72,72 @@ fn test_search_excludes_meta() {
     let results = db.search_sessions("skillキーワード", &["test-project"], 20).unwrap();
     assert_eq!(results.len(), 0);
 }
+
+#[test]
+fn test_query_result_exposes_cwd() {
+    let db = Database::in_memory().unwrap();
+
+    let session = ParsedSession {
+        session_id: "cwd-id".to_string(),
+        project_path: "test-project".to_string(),
+        cwd: Some("/Users/example/src/sample-repo".to_string()),
+        git_branch: Some("main".to_string()),
+        entrypoint: Some("cli".to_string()),
+        version: Some("2.1.81".to_string()),
+        started_at: Some("2026-03-22T12:00:00Z".to_string()),
+        ended_at: Some("2026-03-22T13:00:00Z".to_string()),
+        messages: vec![ParsedMessage {
+            role: "user".to_string(),
+            content: "Notionと連携したい".to_string(),
+            is_meta: false,
+            timestamp: "2026-03-22T12:00:00Z".to_string(),
+            uuid: "msg-1".to_string(),
+        }],
+    };
+    db.upsert_session(&session, "/path/to/file.jsonl", 12345).unwrap();
+
+    let results = db.search_sessions("Notion", &["test-project"], 20).unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].cwd.as_deref(), Some("/Users/example/src/sample-repo"));
+}
+
+#[test]
+fn test_search_sessions_or_terms() {
+    let db = Database::in_memory().unwrap();
+
+    let make = |id: &str, content: &str| ParsedSession {
+        session_id: id.to_string(),
+        project_path: "test-project".to_string(),
+        cwd: Some("/Users/example/src/sample-repo".to_string()),
+        git_branch: Some("main".to_string()),
+        entrypoint: Some("cli".to_string()),
+        version: Some("2.1.81".to_string()),
+        started_at: Some("2026-03-22T12:00:00Z".to_string()),
+        ended_at: Some("2026-03-22T13:00:00Z".to_string()),
+        messages: vec![ParsedMessage {
+            role: "user".to_string(),
+            content: content.to_string(),
+            is_meta: false,
+            timestamp: "2026-03-22T12:00:00Z".to_string(),
+            uuid: format!("{}-msg", id),
+        }],
+    };
+
+    db.upsert_session(&make("s-notion", "Notionの話"), "/a.jsonl", 1).unwrap();
+    db.upsert_session(&make("s-slack", "Slackの話"), "/b.jsonl", 2).unwrap();
+    db.upsert_session(&make("s-other", "無関係な話題"), "/c.jsonl", 3).unwrap();
+
+    let results = db.search_sessions("Notion|Slack", &["test-project"], 20).unwrap();
+    let ids: std::collections::HashSet<&str> =
+        results.iter().map(|r| r.session_id.as_str()).collect();
+    assert_eq!(results.len(), 2);
+    assert!(ids.contains("s-notion"));
+    assert!(ids.contains("s-slack"));
+}
+
+#[test]
+fn test_search_sessions_empty_terms() {
+    let db = Database::in_memory().unwrap();
+    let results = db.search_sessions("|", &["test-project"], 20).unwrap();
+    assert_eq!(results.len(), 0);
+}

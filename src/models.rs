@@ -33,6 +33,7 @@ pub struct MatchSnippet {
 pub struct QueryResult {
     pub session_id: String,
     pub project_path: String,
+    pub cwd: Option<String>,
     pub git_branch: Option<String>,
     pub started_at: Option<String>,
     pub ended_at: Option<String>,
