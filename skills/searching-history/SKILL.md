@@ -35,6 +35,22 @@ Filter by date:
 cclens query "keywords" --after 2026-03-01 --before 2026-03-31 --json
 ```
 
+### cclens list
+
+List all sessions without a search keyword (no limit by default):
+```bash
+cclens list --json
+```
+
+`list` spans all projects and shares the same filters as `query`. Use it to enumerate sessions by branch or date instead of by keyword:
+```bash
+cclens list --branch feature/xxx --json
+cclens list --after 2026-03-01 --before 2026-03-31 --json
+cclens list --limit 50 --json   # cap the number of rows
+```
+
+Output rows carry the same fields as `query`, but without `matches` (there is no keyword to highlight). Prefer `query` when you have a keyword; prefer `list` when the user wants to browse everything or filter only by branch/date.
+
 ### cclens show
 
 Output session metadata (start time, branch, message count, etc.) as JSON:

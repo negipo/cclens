@@ -22,6 +22,18 @@ pub enum Commands {
         #[arg(long)]
         json: bool,
     },
+    List {
+        #[arg(long)]
+        branch: Option<String>,
+        #[arg(long)]
+        after: Option<String>,
+        #[arg(long)]
+        before: Option<String>,
+        #[arg(long)]
+        limit: Option<usize>,
+        #[arg(long)]
+        json: bool,
+    },
     Show {
         session_id: String,
     },

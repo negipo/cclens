@@ -65,14 +65,7 @@ pub fn render_table(results: &[QueryResult]) -> String {
     out
 }
 
-pub fn run(
-    text: Option<String>,
-    branch: Option<String>,
-    after: Option<String>,
-    before: Option<String>,
-    limit: usize,
-    json: bool,
-) -> Result<()> {
+pub fn open_indexed_db() -> Result<(Database, Vec<String>)> {
     let db = Database::open()?;
     let projects_dir = default_projects_dir();
     let dirs = resolve_project_dirs(&projects_dir)?;
@@ -83,6 +76,27 @@ pub fn run(
         .iter()
         .filter_map(|d| d.file_name().and_then(|n| n.to_str()).map(String::from))
         .collect();
+    Ok((db, project_paths))
+}
+
+pub fn print_results(results: &[QueryResult], json: bool) -> Result<()> {
+    if json {
+        println!("{}", serde_json::to_string_pretty(results)?);
+    } else {
+        print!("{}", render_table(results));
+    }
+    Ok(())
+}
+
+pub fn run(
+    text: Option<String>,
+    branch: Option<String>,
+    after: Option<String>,
+    before: Option<String>,
+    limit: usize,
+    json: bool,
+) -> Result<()> {
+    let (db, project_paths) = open_indexed_db()?;
     let project_refs: Vec<&str> = project_paths.iter().map(|s| s.as_str()).collect();
 
     let results = if let Some(ref text) = text {
@@ -97,10 +111,5 @@ pub fn run(
         )?
     };
 
-    if json {
-        println!("{}", serde_json::to_string_pretty(&results)?);
-    } else {
-        print!("{}", render_table(&results));
-    }
-    Ok(())
+    print_results(&results, json)
 }

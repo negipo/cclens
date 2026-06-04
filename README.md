@@ -22,6 +22,18 @@ cclens query "term-a|term-b"   # OR search: match any term
 cclens query "search terms" --json   # output JSON instead of the default table
 ```
 
+### List all sessions
+
+```bash
+cclens list                          # all sessions, no limit
+cclens list --branch feature/xxx     # filter by branch
+cclens list --after 2025-01-01 --before 2025-01-31
+cclens list --limit 50               # cap the number of rows
+cclens list --json                   # output JSON instead of the default table
+```
+
+`list` shares `query`'s filters but takes no search keyword and shows every session by default.
+
 ### Inspect a session
 
 ```bash

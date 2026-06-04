@@ -5,10 +5,7 @@ static BUILD: Once = Once::new();
 
 fn cclens_bin() -> String {
     BUILD.call_once(|| {
-        let status = Command::new("cargo")
-            .args(["build"])
-            .status()
-            .unwrap();
+        let status = Command::new("cargo").args(["build"]).status().unwrap();
         assert!(status.success());
     });
 
@@ -16,8 +13,7 @@ fn cclens_bin() -> String {
         .args(["metadata", "--format-version=1", "--no-deps"])
         .output()
         .unwrap();
-    let meta: serde_json::Value =
-        serde_json::from_slice(&output.stdout).unwrap();
+    let meta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     let target_dir = meta["target_directory"].as_str().unwrap();
     format!("{}/debug/cclens", target_dir)
 }
@@ -40,6 +36,34 @@ fn test_query_default_outputs_table_header() {
     let bin = cclens_bin();
     let output = Command::new(&bin)
         .args(["query", "nonexistent-query-string-xyz"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("STARTED"));
+    assert!(stdout.contains("PROJECT"));
+    assert!(stdout.contains("SESSION"));
+    assert!(stdout.contains("SNIPPET"));
+}
+
+#[test]
+fn test_list_json_flag_returns_json_array() {
+    let bin = cclens_bin();
+    let output = Command::new(&bin)
+        .args(["list", "--json", "--branch", "nonexistent-branch-xyz"])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert!(parsed.is_array());
+}
+
+#[test]
+fn test_list_default_outputs_table_header() {
+    let bin = cclens_bin();
+    let output = Command::new(&bin)
+        .args(["list", "--branch", "nonexistent-branch-xyz"])
         .output()
         .unwrap();
 
