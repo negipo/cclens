@@ -38,6 +38,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Reindex => {
             cclens::commands::reindex::run()?;
         }
+        Commands::Browse => {
+            cclens::commands::browse::run()?;
+        }
     }
 
     Ok(())

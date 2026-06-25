@@ -42,4 +42,5 @@ pub enum Commands {
     },
     Install,
     Reindex,
+    Browse,
 }
