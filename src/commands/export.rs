@@ -4,6 +4,7 @@ use crate::renderer::{render_line, RenderedMessage};
 use crate::scope::{default_projects_dir, resolve_project_dirs};
 use anyhow::{bail, Result};
 use serde_json::Value;
+use std::fmt::Write as _;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -13,6 +14,12 @@ pub fn run(session_id: &str) -> Result<()> {
     let dirs = resolve_project_dirs(&projects_dir)?;
     update_index(&db, &dirs)?;
 
+    let markdown = render_session_markdown(&db, session_id)?;
+    print!("{}", markdown);
+    Ok(())
+}
+
+pub fn render_session_markdown(db: &Database, session_id: &str) -> Result<String> {
     let session = db.get_session(session_id)?;
     if session.is_none() {
         bail!("Session not found: {}", session_id);
@@ -25,18 +32,19 @@ pub fn run(session_id: &str) -> Result<()> {
     }
     let source_file = source_file.unwrap();
 
-    println!("# Session {}", session.session_id);
-    println!();
+    let mut out = String::new();
+    writeln!(out, "# Session {}", session.session_id)?;
+    writeln!(out)?;
     if let Some(ref branch) = session.git_branch {
-        println!("- Branch: {}", branch);
+        writeln!(out, "- Branch: {}", branch)?;
     }
     if let Some(ref started) = session.started_at {
-        println!("- Started: {}", started);
+        writeln!(out, "- Started: {}", started)?;
     }
     if let Some(ref ended) = session.ended_at {
-        println!("- Ended: {}", ended);
+        writeln!(out, "- Ended: {}", ended)?;
     }
-    println!();
+    writeln!(out)?;
 
     let file = File::open(&source_file)?;
     let reader = BufReader::new(file);
@@ -53,33 +61,33 @@ pub fn run(session_id: &str) -> Result<()> {
 
         match render_line(&v) {
             Some(RenderedMessage::User(content)) => {
-                println!("---");
-                println!();
+                writeln!(out, "---")?;
+                writeln!(out)?;
                 for l in content.lines() {
-                    println!("> {}", l);
+                    writeln!(out, "> {}", l)?;
                 }
-                println!();
+                writeln!(out)?;
             }
             Some(RenderedMessage::Assistant(content)) => {
                 let mut lines = content.lines();
                 if let Some(first) = lines.next() {
                     if needs_separate_marker(first) {
-                        println!("❋\n");
-                        println!("{}", first);
+                        writeln!(out, "❋\n")?;
+                        writeln!(out, "{}", first)?;
                     } else {
-                        println!("❋ {}", first);
+                        writeln!(out, "❋ {}", first)?;
                     }
                 }
                 for l in lines {
-                    println!("{}", l);
+                    writeln!(out, "{}", l)?;
                 }
-                println!();
+                writeln!(out)?;
             }
             None => {}
         }
     }
 
-    Ok(())
+    Ok(out)
 }
 
 fn needs_separate_marker(line: &str) -> bool {
