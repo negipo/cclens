@@ -139,7 +139,16 @@ fn test_render_session_markdown_returns_export_text() {
         .unwrap();
 
     let md = render_session_markdown(&db, "render-id").unwrap();
-    assert!(md.starts_with("# Session render-id"));
-    assert!(md.contains("> Hello there"));
-    assert!(md.contains("❋ Hi, how can I help?"));
+    let expected = "# Session render-id\n\n\
+                    - Branch: main\n\
+                    - Started: 2026-03-22T12:00:00Z\n\
+                    - Ended: 2026-03-22T13:00:00Z\n\
+                    \n\
+                    ---\n\
+                    \n\
+                    > Hello there\n\
+                    \n\
+                    ❋ Hi, how can I help?\n\
+                    \n";
+    assert_eq!(md, expected);
 }
