@@ -11,7 +11,7 @@ use crossterm::terminal::{
 };
 use crossterm::execute;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
 use std::process::{Command, Stdio};
@@ -192,11 +192,10 @@ fn draw(f: &mut Frame, app: &App, preview: &str) {
         ])
         .split(f.area());
 
-    let rows: Vec<Line> = app
+    let items: Vec<ListItem> = app
         .sessions
         .iter()
-        .enumerate()
-        .map(|(i, r)| {
+        .map(|r| {
             let text = format!(
                 "{}  {}  {}  {}",
                 format_started_at(&r.started_at),
@@ -204,19 +203,17 @@ fn draw(f: &mut Frame, app: &App, preview: &str) {
                 r.session_id,
                 format_snippet(r)
             );
-            if i == app.selected {
-                Line::from(Span::styled(
-                    text,
-                    Style::default().add_modifier(Modifier::REVERSED),
-                ))
-            } else {
-                Line::from(text)
-            }
+            ListItem::new(text)
         })
         .collect();
-    let list = Paragraph::new(rows)
-        .block(Block::default().borders(Borders::ALL).title("sessions"));
-    f.render_widget(list, chunks[0]);
+    let list = List::new(items)
+        .block(Block::default().borders(Borders::ALL).title("sessions"))
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+    let mut list_state = ListState::default();
+    if !app.sessions.is_empty() {
+        list_state.select(Some(app.selected));
+    }
+    f.render_stateful_widget(list, chunks[0], &mut list_state);
 
     let preview_widget = Paragraph::new(preview.to_string())
         .block(Block::default().borders(Borders::ALL).title("preview"));
