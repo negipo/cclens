@@ -270,6 +270,85 @@ impl Database {
         Ok(results)
     }
 
+    pub fn browse_search(
+        &self,
+        text: &str,
+        project_paths: &[&str],
+        limit: usize,
+    ) -> Result<Vec<QueryResult>> {
+        if project_paths.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let terms: Vec<String> = text
+            .split_whitespace()
+            .map(String::from)
+            .collect();
+        if terms.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+        let mut term_clauses = Vec::new();
+        let mut idx = 1;
+        for term in &terms {
+            let pattern = format!("%{}%", term);
+            let clause = format!(
+                "(EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.session_id AND m.is_meta = 0 AND m.content LIKE ?{0}) \
+                 OR s.project_path LIKE ?{1} OR s.cwd LIKE ?{2} OR s.git_branch LIKE ?{3})",
+                idx, idx + 1, idx + 2, idx + 3
+            );
+            term_clauses.push(clause);
+            for _ in 0..4 {
+                param_values.push(Box::new(pattern.clone()));
+            }
+            idx += 4;
+        }
+
+        let in_clause = (0..project_paths.len())
+            .map(|i| format!("?{}", idx + i))
+            .collect::<Vec<_>>()
+            .join(", ");
+        for path in project_paths {
+            param_values.push(Box::new(path.to_string()));
+        }
+
+        let sql = format!(
+            "SELECT s.session_id, s.project_path, s.cwd, s.git_branch, s.started_at, s.ended_at, 0 as match_count
+             FROM sessions s
+             WHERE {} AND s.project_path IN ({})
+             ORDER BY s.started_at DESC
+             LIMIT {}",
+            term_clauses.join(" AND "),
+            in_clause,
+            limit
+        );
+
+        let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
+        let mut stmt = self.conn.prepare(&sql)?;
+        let mut rows = stmt.query(param_refs.as_slice())?;
+
+        let mut results = Vec::new();
+        while let Some(row) = rows.next()? {
+            let session_id: String = row.get(0)?;
+            let matches = self.get_first_user_snippet(&session_id)?;
+            results.push(QueryResult {
+                resume_command: format!("claude --resume {}", session_id),
+                session_id,
+                project_path: row.get(1)?,
+                cwd: row.get(2)?,
+                git_branch: row.get(3)?,
+                started_at: row.get(4)?,
+                ended_at: row.get(5)?,
+                match_count: row.get(6)?,
+                matches,
+            });
+        }
+
+        Ok(results)
+    }
+
     fn get_match_snippets(
         &self,
         session_id: &str,
