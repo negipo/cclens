@@ -22,14 +22,14 @@ pub struct ParsedMessage {
     pub uuid: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MatchSnippet {
     pub role: String,
     pub snippet: String,
     pub timestamp: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct QueryResult {
     pub session_id: String,
     pub project_path: String,

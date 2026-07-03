@@ -34,6 +34,18 @@ cclens list --json                   # output JSON instead of the default table
 
 `list` shares `query`'s filters but takes no search keyword and shows the most recent sessions by default.
 
+### Browse sessions interactively
+
+```bash
+cclens browse
+```
+
+Opens a terminal UI over the most recent sessions. Navigate with arrow keys (or
+`j`/`k`); the preview pane shows the first 20 lines of the selected session.
+Press `/` for a space-separated AND search across message content, repository,
+and branch name. `Enter` copies the session id, `e` copies the full export, and
+`q` quits.
+
 ### Inspect a session
 
 ```bash
