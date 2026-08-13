@@ -225,13 +225,13 @@ impl Database {
             .join(", ");
 
         let sql = format!(
-            "SELECT s.session_id, s.project_path, s.cwd, s.git_branch, s.started_at, s.ended_at, COUNT(*) as match_count
+            "SELECT s.session_id, s.project_path, s.cwd, s.git_branch, s.started_at, s.ended_at, COUNT(*) as match_count, s.user_message_count
              FROM sessions s
              JOIN messages m ON s.session_id = m.session_id
              WHERE ({})
                AND m.is_meta = 0
                AND s.project_path IN ({})
-             GROUP BY s.session_id, s.project_path, s.cwd, s.git_branch, s.started_at, s.ended_at
+             GROUP BY s.session_id, s.project_path, s.cwd, s.git_branch, s.started_at, s.ended_at, s.user_message_count
              ORDER BY s.started_at DESC
              LIMIT {}",
             like_clause, in_clause, limit
@@ -263,6 +263,7 @@ impl Database {
                 started_at: row.get(4)?,
                 ended_at: row.get(5)?,
                 match_count: row.get(6)?,
+                user_message_count: row.get(7)?,
                 matches,
             });
         }
@@ -275,6 +276,7 @@ impl Database {
         text: &str,
         project_paths: &[&str],
         limit: usize,
+        snippet_limit: usize,
     ) -> Result<Vec<QueryResult>> {
         if project_paths.is_empty() {
             return Ok(Vec::new());
@@ -314,7 +316,7 @@ impl Database {
         }
 
         let sql = format!(
-            "SELECT s.session_id, s.project_path, s.cwd, s.git_branch, s.started_at, s.ended_at, 0 as match_count
+            "SELECT s.session_id, s.project_path, s.cwd, s.git_branch, s.started_at, s.ended_at, 0 as match_count, s.user_message_count
              FROM sessions s
              WHERE {} AND s.project_path IN ({})
              ORDER BY s.started_at DESC
@@ -332,7 +334,7 @@ impl Database {
         let mut results = Vec::new();
         while let Some(row) = rows.next()? {
             let session_id: String = row.get(0)?;
-            let matches = self.get_first_user_snippet(&session_id)?;
+            let matches = self.get_first_user_snippet(&session_id, snippet_limit)?;
             results.push(QueryResult {
                 resume_command: format!("claude --resume {}", session_id),
                 session_id,
@@ -342,6 +344,7 @@ impl Database {
                 started_at: row.get(4)?,
                 ended_at: row.get(5)?,
                 match_count: row.get(6)?,
+                user_message_count: row.get(7)?,
                 matches,
             });
         }
@@ -392,7 +395,7 @@ impl Database {
         Ok(snippets)
     }
 
-    fn get_first_user_snippet(&self, session_id: &str) -> Result<Vec<MatchSnippet>> {
+    fn get_first_user_snippet(&self, session_id: &str, snippet_limit: usize) -> Result<Vec<MatchSnippet>> {
         let mut stmt = self.conn.prepare(
             "SELECT role, content, timestamp FROM messages
              WHERE session_id = ?1 AND role = 'user' AND is_meta = 0
@@ -404,7 +407,7 @@ impl Database {
             let content: String = row.get(1)?;
             snippets.push(MatchSnippet {
                 role: row.get(0)?,
-                snippet: truncate_around_match(&content, 80),
+                snippet: truncate_around_match(&content, snippet_limit),
                 timestamp: row.get(2)?,
             });
         }
@@ -418,6 +421,7 @@ impl Database {
         after: Option<&str>,
         before: Option<&str>,
         limit: usize,
+        snippet_limit: usize,
     ) -> Result<Vec<QueryResult>> {
         if project_paths.is_empty() {
             return Ok(Vec::new());
@@ -456,7 +460,7 @@ impl Database {
         let where_clause = format!("WHERE {}", conditions.join(" AND "));
 
         let sql = format!(
-            "SELECT session_id, project_path, cwd, git_branch, started_at, ended_at, 0 as match_count
+            "SELECT session_id, project_path, cwd, git_branch, started_at, ended_at, 0 as match_count, user_message_count
              FROM sessions
              {}
              ORDER BY started_at DESC
@@ -472,7 +476,7 @@ impl Database {
         let mut results = Vec::new();
         while let Some(row) = rows.next()? {
             let session_id: String = row.get(0)?;
-            let matches = self.get_first_user_snippet(&session_id)?;
+            let matches = self.get_first_user_snippet(&session_id, snippet_limit)?;
             results.push(QueryResult {
                 resume_command: format!("claude --resume {}", session_id),
                 session_id,
@@ -482,6 +486,7 @@ impl Database {
                 started_at: row.get(4)?,
                 ended_at: row.get(5)?,
                 match_count: row.get(6)?,
+                user_message_count: row.get(7)?,
                 matches,
             });
         }

@@ -10,6 +10,7 @@ fn sample(cwd: Option<&str>, snippet: Option<&str>) -> QueryResult {
         started_at: Some("2026-06-03T12:34:56Z".to_string()),
         ended_at: Some("2026-06-03T13:00:00Z".to_string()),
         match_count: 1,
+        user_message_count: 1,
         matches: snippet
             .map(|s| {
                 vec![MatchSnippet {

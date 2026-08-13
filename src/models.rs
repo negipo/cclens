@@ -38,6 +38,7 @@ pub struct QueryResult {
     pub started_at: Option<String>,
     pub ended_at: Option<String>,
     pub match_count: i64,
+    pub user_message_count: i64,
     pub matches: Vec<MatchSnippet>,
     pub resume_command: String,
 }

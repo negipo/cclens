@@ -108,6 +108,7 @@ pub fn run(
             after.as_deref(),
             before.as_deref(),
             limit,
+            80,
         )?
     };
 

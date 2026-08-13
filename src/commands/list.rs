@@ -17,6 +17,7 @@ pub fn run(
         after.as_deref(),
         before.as_deref(),
         limit.unwrap_or(30),
+        80,
     )?;
 
     print_results(&results, json)

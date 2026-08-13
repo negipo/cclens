@@ -18,6 +18,8 @@ use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
 use std::process::{Command, Stdio};
 
+const SNIPPET_LIMIT: usize = 240;
+
 #[derive(PartialEq)]
 enum Mode {
     Normal,
@@ -119,7 +121,7 @@ pub fn run() -> Result<()> {
 
     let (db, project_paths) = open_indexed_db()?;
     let project_refs: Vec<&str> = project_paths.iter().map(|s| s.as_str()).collect();
-    let base_sessions = db.list_sessions(&project_refs, None, None, None, 120)?;
+    let base_sessions = db.list_sessions(&project_refs, None, None, None, 120, SNIPPET_LIMIT)?;
     drop(project_refs);
 
     let mut app = App {
@@ -206,7 +208,7 @@ fn event_loop<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<(
                         let refs: Vec<&str> =
                             app.project_paths.iter().map(|s| s.as_str()).collect();
                         let results =
-                            app.db.browse_search(&app.query_input, &refs, 120)?;
+                            app.db.browse_search(&app.query_input, &refs, 120, SNIPPET_LIMIT)?;
                         app.sessions = results;
                         app.selected = 0;
                         app.preview_scroll = 0;

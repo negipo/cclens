@@ -168,12 +168,43 @@ fn test_list_sessions_previews_first_user_message() {
     db.upsert_session(&session, "/path/to/file.jsonl", 12345).unwrap();
 
     let results = db
-        .list_sessions(&["test-project"], None, None, None, 20)
+        .list_sessions(&["test-project"], None, None, None, 20, 240)
         .unwrap();
     assert_eq!(results.len(), 1);
+    assert_eq!(results[0].user_message_count, 1);
     assert_eq!(results[0].matches.len(), 1);
     assert_eq!(results[0].matches[0].role, "user");
     assert_eq!(results[0].matches[0].snippet, "最初のユーザ発言");
+}
+
+#[test]
+fn test_list_sessions_honors_snippet_limit() {
+    let db = Database::in_memory().unwrap();
+    let long_content = "あ".repeat(200);
+    let session = ParsedSession {
+        session_id: "limit-id".to_string(),
+        project_path: "test-project".to_string(),
+        cwd: Some("/Users/example/src/sample-repo".to_string()),
+        git_branch: Some("main".to_string()),
+        entrypoint: Some("cli".to_string()),
+        version: Some("2.1.81".to_string()),
+        started_at: Some("2026-03-22T12:00:00Z".to_string()),
+        ended_at: Some("2026-03-22T13:00:00Z".to_string()),
+        messages: vec![ParsedMessage {
+            role: "user".to_string(),
+            content: long_content.clone(),
+            is_meta: false,
+            timestamp: "2026-03-22T12:00:00Z".to_string(),
+            uuid: "msg-1".to_string(),
+        }],
+    };
+    db.upsert_session(&session, "/path/to/file.jsonl", 12345).unwrap();
+
+    let short = db.list_sessions(&["test-project"], None, None, None, 20, 80).unwrap();
+    assert_eq!(short[0].matches[0].snippet.chars().count(), 83);
+
+    let wide = db.list_sessions(&["test-project"], None, None, None, 20, 240).unwrap();
+    assert_eq!(wide[0].matches[0].snippet, long_content);
 }
 
 #[test]
@@ -229,24 +260,25 @@ fn test_browse_search_and_terms_across_fields() {
     let projects = ["-Users-x-proj-alpha", "-Users-x-proj-beta"];
 
     // プロジェクト名 alpha かつ 本文 retry → alphaのみ
-    let r = db.browse_search("alpha retry", &projects, 120).unwrap();
+    let r = db.browse_search("alpha retry", &projects, 120, 240).unwrap();
     assert_eq!(r.len(), 1);
     assert_eq!(r[0].session_id, "id-alpha");
+    assert_eq!(r[0].user_message_count, 1);
     // matchesはlist同様の最初のuserメッセージ抜粋
     assert_eq!(r[0].matches.len(), 1);
     assert!(r[0].matches[0].snippet.contains("retry"));
 
     // ブランチ名マッチ
-    let r = db.browse_search("po/foo", &projects, 120).unwrap();
+    let r = db.browse_search("po/foo", &projects, 120, 240).unwrap();
     assert_eq!(r.len(), 1);
     assert_eq!(r[0].session_id, "id-alpha");
 
     // どのセッションも両語を満たさない → 0件
-    let r = db.browse_search("alpha beta", &projects, 120).unwrap();
+    let r = db.browse_search("alpha beta", &projects, 120, 240).unwrap();
     assert_eq!(r.len(), 0);
 
     // 空入力 → 0件
-    assert_eq!(db.browse_search("   ", &projects, 120).unwrap().len(), 0);
+    assert_eq!(db.browse_search("   ", &projects, 120, 240).unwrap().len(), 0);
 }
 
 #[test]
@@ -272,7 +304,7 @@ fn test_browse_search_orders_by_recency() {
     db.upsert_session(&make("old", "2026-03-01T00:00:00Z"), "/p/old.jsonl", 1).unwrap();
     db.upsert_session(&make("new", "2026-03-10T00:00:00Z"), "/p/new.jsonl", 2).unwrap();
 
-    let r = db.browse_search("keyword", &["test-project"], 120).unwrap();
+    let r = db.browse_search("keyword", &["test-project"], 120, 240).unwrap();
     assert_eq!(r.len(), 2);
     assert_eq!(r[0].session_id, "new");
     assert_eq!(r[1].session_id, "old");
