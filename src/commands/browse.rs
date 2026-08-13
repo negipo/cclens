@@ -1,6 +1,6 @@
 use crate::commands::export::render_session_markdown;
 use crate::commands::query::{
-    format_snippet, format_started_at, open_indexed_db, project_label,
+    format_started_at, open_indexed_db, project_label,
 };
 use crate::db::Database;
 use crate::models::QueryResult;
@@ -13,7 +13,7 @@ use crossterm::terminal::{
 };
 use crossterm::execute;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::widgets::{Block, Borders, Paragraph, Row, Table, TableState};
 use std::collections::HashMap;
 use std::io::{IsTerminal, Write};
 use std::process::{Command, Stdio};
@@ -44,7 +44,7 @@ struct App {
     query_input: String,
     preview_cache: HashMap<String, String>,
     status: Option<String>,
-    list_state: ListState,
+    table_state: TableState,
     sessions_area: Rect,
     preview_area: Rect,
 }
@@ -136,7 +136,7 @@ pub fn run() -> Result<()> {
         query_input: String::new(),
         preview_cache: HashMap::new(),
         status: None,
-        list_state: ListState::default(),
+        table_state: TableState::default(),
         sessions_area: Rect::default(),
         preview_area: Rect::default(),
     };
@@ -232,7 +232,7 @@ fn event_loop<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<(
                             if let Some(index) = row_to_index(
                                 m.row,
                                 app.sessions_area,
-                                app.list_state.offset(),
+                                app.table_state.offset(),
                                 app.sessions.len(),
                             ) {
                                 app.select(index);
@@ -264,8 +264,15 @@ fn event_loop<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<(
     Ok(())
 }
 
+fn snippet_text(r: &QueryResult) -> String {
+    match r.matches.first() {
+        Some(m) => m.snippet.replace('\n', " "),
+        None => String::new(),
+    }
+}
+
 fn row_to_index(row: u16, area: Rect, list_offset: usize, len: usize) -> Option<usize> {
-    let first = area.y + 1;
+    let first = area.y + 2;
     let last = area.y + area.height.saturating_sub(1);
     if row < first || row >= last {
         return None;
@@ -300,34 +307,58 @@ fn draw(f: &mut Frame, app: &mut App, preview: &str) {
     let sessions_border = pane_border(app.focus == Pane::Sessions);
     let preview_border = pane_border(app.focus == Pane::Preview);
 
-    let items: Vec<ListItem> = app
+    let project_width = app
+        .sessions
+        .iter()
+        .map(|r| project_label(r).chars().count())
+        .max()
+        .unwrap_or(0)
+        .clamp(7, 24) as u16;
+
+    let header = Row::new(vec![
+        Line::from("STARTED"),
+        Line::from("TURNS").right_aligned(),
+        Line::from("PROJECT"),
+        Line::from("SNIPPET"),
+    ])
+    .style(Style::default().add_modifier(Modifier::DIM));
+
+    let rows: Vec<Row> = app
         .sessions
         .iter()
         .map(|r| {
-            let text = format!(
-                "{}  {}  {}  {}",
-                format_started_at(&r.started_at),
-                project_label(r),
-                r.session_id,
-                format_snippet(r)
-            );
-            ListItem::new(text)
+            Row::new(vec![
+                Line::from(format_started_at(&r.started_at)),
+                Line::from(r.user_message_count.to_string()).right_aligned(),
+                Line::from(project_label(r)),
+                Line::from(snippet_text(r)),
+            ])
         })
         .collect();
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(sessions_border)
-                .title("sessions"),
-        )
-        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(16),
+            Constraint::Length(5),
+            Constraint::Length(project_width),
+            Constraint::Fill(1),
+        ],
+    )
+    .header(header)
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(sessions_border)
+            .title("sessions"),
+    )
+    .row_highlight_style(Style::default().add_modifier(Modifier::REVERSED));
     if app.sessions.is_empty() {
-        app.list_state.select(None);
+        app.table_state.select(None);
     } else {
-        app.list_state.select(Some(app.selected));
+        app.table_state.select(Some(app.selected));
     }
-    f.render_stateful_widget(list, chunks[0], &mut app.list_state);
+    f.render_stateful_widget(table, chunks[0], &mut app.table_state);
 
     let view_height = chunks[1].height.saturating_sub(2);
     app.preview_scroll = clamp_scroll(app.preview_scroll, preview.lines().count(), view_height);
@@ -378,20 +409,21 @@ mod tests {
     #[test]
     fn test_row_to_index_maps_click_row() {
         let area = Rect::new(0, 0, 40, 10);
-        assert_eq!(row_to_index(1, area, 0, 20), Some(0));
-        assert_eq!(row_to_index(3, area, 0, 20), Some(2));
+        assert_eq!(row_to_index(2, area, 0, 20), Some(0));
+        assert_eq!(row_to_index(4, area, 0, 20), Some(2));
     }
 
     #[test]
     fn test_row_to_index_honors_offset() {
         let area = Rect::new(0, 0, 40, 10);
-        assert_eq!(row_to_index(1, area, 5, 20), Some(5));
+        assert_eq!(row_to_index(2, area, 5, 20), Some(5));
     }
 
     #[test]
-    fn test_row_to_index_rejects_border_rows() {
+    fn test_row_to_index_rejects_border_and_header_rows() {
         let area = Rect::new(0, 0, 40, 10);
         assert_eq!(row_to_index(0, area, 0, 20), None);
+        assert_eq!(row_to_index(1, area, 0, 20), None);
         assert_eq!(row_to_index(9, area, 0, 20), None);
     }
 
@@ -399,5 +431,46 @@ mod tests {
     fn test_row_to_index_rejects_beyond_len() {
         let area = Rect::new(0, 0, 40, 10);
         assert_eq!(row_to_index(5, area, 0, 2), None);
+    }
+
+    #[test]
+    fn test_snippet_text_replaces_newlines_without_truncation() {
+        let long_tail = "b".repeat(100);
+        let r = QueryResult {
+            session_id: "test-session".to_string(),
+            project_path: "-Users-example-src-sample-repo".to_string(),
+            cwd: None,
+            git_branch: None,
+            started_at: None,
+            ended_at: None,
+            match_count: 0,
+            user_message_count: 3,
+            matches: vec![crate::models::MatchSnippet {
+                role: "user".to_string(),
+                snippet: format!("line one\n{}", long_tail),
+                timestamp: "2026-06-03T12:34:56Z".to_string(),
+            }],
+            resume_command: "claude --resume test-session".to_string(),
+        };
+        let s = snippet_text(&r);
+        assert!(!s.contains('\n'));
+        assert_eq!(s, format!("line one {}", long_tail));
+    }
+
+    #[test]
+    fn test_snippet_text_empty_when_no_match() {
+        let r = QueryResult {
+            session_id: "test-session".to_string(),
+            project_path: "-Users-example-src-sample-repo".to_string(),
+            cwd: None,
+            git_branch: None,
+            started_at: None,
+            ended_at: None,
+            match_count: 0,
+            user_message_count: 0,
+            matches: vec![],
+            resume_command: "claude --resume test-session".to_string(),
+        };
+        assert_eq!(snippet_text(&r), "");
     }
 }
