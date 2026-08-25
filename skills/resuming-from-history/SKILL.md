@@ -16,9 +16,21 @@ The session ID must already be identified. If unknown, identify the session firs
 `cclens export` returns a compressed, formatted view of the prior session that will not exceed the previous session's context size, so it fits safely in the main context. Load the full text directly — do not summarize and do not dispatch a subagent.
 
 1. Run `cclens export <session-id>` via Bash in the main session.
-2. The full output is now in the main context. Use it to respond to the user's request to continue the previous work.
+2. Load every document the prior session relied on. Then respond to the user's request to continue the previous work.
 
 Do not read JSONL files under .claude directly. JSONL is raw data and very large, which would overwhelm the context. `cclens export` returns formatted and compressed output, which is sufficient.
+
+## Loading Referenced Documents
+
+`cclens export` renders conversation text only — tool results are dropped. A document the user presented survives in the output as its path or URL, never as its content.
+
+After the export lands in context, list every document the user pointed at or the work depended on — plan and design docs (`tmp/doc/`, `docs/`), specs, schemas, config files, PR and issue URLs, other shared links — and load each one in full before continuing:
+
+- Local paths: Read (or `cat`)
+- PR / issue URLs: `gh pr view` / `gh issue view`, including the diff when the work touched it
+- Other URLs: WebFetch
+
+Load the whole document, not the portion the conversation quoted. If a document no longer exists or cannot be fetched, tell the user rather than reconstructing it from the conversation.
 
 ## Branch Caveat
 
